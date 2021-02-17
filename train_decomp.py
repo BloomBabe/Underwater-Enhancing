@@ -86,9 +86,9 @@ if WEIGHTS_PTH is not None:
     scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
 else:
     start_epoch = 0
+
 global_epoch = 0
 global_step = 0
-
 
 best_loss = 100.
 """ Training """
