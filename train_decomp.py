@@ -8,6 +8,7 @@ import torch
 import argparse
 import datetime
 from tqdm import tqdm
+from torchvision import transforms
 from torch.utils.data import DataLoader, random_split
 from uieb_dataset import *
 from models.decomp import *
@@ -20,8 +21,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--raw_dataset_pth', type=str, default='./raw-890', help='Path of raw dataset [default: ./raw-890]')
-parser.add_argument('--ref_dataset_pth', type=str, default='./reference-890', help='Path of reference dataset [default: ././reference-890]')
+parser.add_argument('--dataset_pth', type=str, default='./data', help='Path of reference dataset [default: ././reference-890]')
 parser.add_argument('--image_shape', type=tuple, default=(256, 256), help='Shape of imput images')
 parser.add_argument('--weights_path', type=str, default=None, help='Path to pretrained model [default: None]')
 parser.add_argument('--epoch', type=int, default=200, help='Number of training epochs [default: 200]')
@@ -31,8 +31,7 @@ parser.add_argument('--exp_dir', type=str, default=None, help='Experiment dir [d
 parser.add_argument('--decay_rate', type=float, default=1e-4, help='Decay rate for lr decay [default: 1e-4]')
 args = parser.parse_args()
 
-RAW_PATH = args.raw_dataset_pth
-REF_PATH = args.ref_dataset_pth
+DATASET = args.dataset_pth
 INPUT_SHAPE = args.image_shape
 WEIGHTS_PTH = args.weights_path
 EXP_DIR = args.exp_dir
@@ -55,9 +54,9 @@ if not os.path.exists(log_dir):
     os.mkdir(log_dir)
 
 """ Data loading """
-dataset = UiebDataset(RAW_PATH, REF_PATH)
-lengths = [int(len(dataset)*0.8), int(len(dataset)*0.2)]
-train_ds, valid_ds = random_split(dataset, lengths)
+transform = transforms.Compose([Rescale((256, 256)), ToTensor()])
+train_ds = UiebDataset(DATASET, mode='train', transform=transform)
+valid_ds = UiebDataset(DATASET, mode='val', transform=transform)
 train_loader = DataLoader(dataset=train_ds, batch_size=BATCH_SIZE, shuffle=True)
 valid_loader = DataLoader(dataset=valid_ds, batch_size=BATCH_SIZE)
 
@@ -97,17 +96,9 @@ for epoch in range(start_epoch, EPOCHS):
     loss_list = []
     # train
     for batch_id, data in tqdm(enumerate(train_loader, 0), total=len(train_loader), smoothing=0.9):
-        raw_img, ref_img = data
-
-        rand_mode = random.randint(0, 7)
-        raw_img = data_augmentation(raw_img, rand_mode).reshape(BATCH_SIZE, 3, INPUT_SHAPE[0], INPUT_SHAPE[1])
-        ref_img = data_augmentation(ref_img, rand_mode).reshape(BATCH_SIZE, 3, INPUT_SHAPE[0], INPUT_SHAPE[1])
-        raw_img = torch.from_numpy(raw_img.copy()).to(device)
-        ref_img = torch.from_numpy(ref_img.copy()).to(device)
-
+        raw_img, ref_img = data['raw_image'].to(device), data['ref_image'].to(device)
         optimizer.zero_grad()
         decomp.train()
-
         R_low, I_low = decomp(raw_img.float())
         R_high, I_high = decomp(ref_img.float())
         loss = deocmp_loss(ref_img, raw_img, R_high, I_high, R_low, I_low)
@@ -115,7 +106,6 @@ for epoch in range(start_epoch, EPOCHS):
         loss.backward()
         optimizer.step()
         global_step +=1
-
     print('Mean loss: %f' % np.mean(loss_list))
 
     decomp.eval()
@@ -123,16 +113,13 @@ for epoch in range(start_epoch, EPOCHS):
     with torch.no_grad():
         val_loss = []
         for data in valid_loader:
-            raw_img, ref_img = data
-            raw_img = torch.Tensor(raw_img).to(device)
-            ref_img = torch.Tensor(ref_img).to(device)
+            raw_img, ref_img = data['raw_image'].to(device), data['ref_image'].to(device)
             R_low, I_low = decomp(raw_img)
             R_high, I_high = decomp(ref_img)
             loss = deocmp_loss(ref_img, raw_img, R_high, I_high, R_low, I_low)
             val_loss.append(loss)
         val_loss = np.mean(val_loss)
         print('Valid mean loss: %d' % val_loss)
-        
         if val_loss < best_loss:
             best_loss = val_loss
             print('Saving model...')

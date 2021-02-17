@@ -1,47 +1,58 @@
 import numpy as np
-from PIL import Image
+import torch
+from skimage import io, transform
 
-def data_augmentation(image, mode):
-    if mode == 0:
-        # original
-        return image
-    elif mode == 1:
-        # flip up and down
-        return np.flipud(image)
-    elif mode == 2:
-        # rotate counterwise 90 degree
-        return np.rot90(image)
-    elif mode == 3:
-        # rotate 90 degree and flip up and down
-        image = np.rot90(image)
-        return np.flipud(image)
-    elif mode == 4:
-        # rotate 180 degree
-        return np.rot90(image, k=2)
-    elif mode == 5:
-        # rotate 180 degree and flip
-        image = np.rot90(image, k=2)
-        return np.flipud(image)
-    elif mode == 6:
-        # rotate 270 degree
-        return np.rot90(image, k=3)
-    elif mode == 7:
-        # rotate 270 degree and flip
-        image = np.rot90(image, k=3)
-        return np.flipud(image)
+class Rescale(object):
+    """Rescale the image in a sample to a given size.
 
-def load_images(file):
-    im = Image.open(file)
-    return np.array(im, dtype="float32") / 255.0
+    Args:
+        output_size (tuple or int): Desired output size. If tuple, output is
+            matched to output_size. If int, smaller of image edges is matched
+            to output_size keeping aspect ratio the same.
+    """
 
-def save_images(filepath, result_1, result_2 = None):
-    result_1 = np.squeeze(result_1)
-    result_2 = np.squeeze(result_2)
+    def __init__(self, output_size):
+        assert isinstance(output_size, (int, tuple))
+        self.output_size = output_size
 
-    if not result_2.any():
-        cat_image = result_1
-    else:
-        cat_image = np.concatenate([result_1, result_2], axis = 1)
+    def _resize(self, image):
+        h, w = image.shape[:2]
+        if isinstance(self.output_size, int):
+            if h > w:
+                new_h, new_w = self.output_size * h / w, self.output_size
+            else:
+                new_h, new_w = self.output_size, self.output_size * w / h
+        else:
+            new_h, new_w = self.output_size
 
-    im = Image.fromarray(np.clip(cat_image * 255.0, 0, 255.0).astype('uint8'))
-    im.save(filepath, 'png')
+        new_h, new_w = int(new_h), int(new_w)
+
+        img = transform.resize(image, (new_h, new_w))
+        return img
+
+    def __call__(self, sample):
+        raw_image, ref_image = sample['raw_image'], sample['ref_image']
+
+        new_raw_image = self._resize(raw_image)
+        new_ref_image = self._resize(ref_image)    
+        return {'raw_image': new_raw_image, 'ref_image': new_ref_image}
+
+
+class ToTensor(object):
+    """Convert ndarrays in sample to Tensors."""
+    def _transpose(self, image, channels=(2, 0, 1)):
+        return image.transpose(channels)
+
+    def __call__(self, sample):
+        raw_image, ref_image = sample['raw_image'], sample['ref_image']
+
+        # swap color axis because
+        # numpy image: H x W x C
+        # torch image: C X H X W
+        new_raw_image = self._transpose(raw_image)
+        new_ref_image = self._transpose(ref_image)
+
+        return {'raw_image': torch.from_numpy(new_raw_image),
+                'ref_image': torch.from_numpy(new_ref_image)}
+
+

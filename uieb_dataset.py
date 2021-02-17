@@ -5,20 +5,23 @@ import torch
 from torch.utils.data import Dataset
 import torch.nn.functional as F
 from torchvision.transforms import ToTensor, ToPILImage
-from PIL import Image
+from skimage import io, transform
 
 class UiebDataset(Dataset):
 
     def __init__(self,
-                 raw_pth,
-                 reference_pth,
-                 image_size = (256, 256)):
+                 dataset_pth,
+                 mode = 'train',
+                 transform = None):
         super(UiebDataset, self).__init__()
-        self.image_size = image_size
-        self.raw_pth = raw_pth
-        self.reference_pth = reference_pth
-
+        
+        self.transform = transform
+        self.dataset_pth = dataset_pth
+        assert mode in ['train', 'val']
+        self.dataset_pth = os.path.join(self.dataset_pth, mode)
+        self.raw_pth = os.path.join(self.dataset_pth, 'raw')
         self.raw_filenames = sorted(os.listdir(self.raw_pth))
+        self.reference_pth = os.path.join(self.dataset_pth, 'ref')
         self.reference_filenames = sorted(os.listdir(self.reference_pth))
 
         assert len(self.raw_filenames) == len(self.reference_filenames)
@@ -26,24 +29,14 @@ class UiebDataset(Dataset):
     def __len__(self):
         return len(self.raw_filenames)
 
-    def _load_img(self, pth):
-        img = Image.open(pth)
-        img = img.resize(self.image_size, Image.ANTIALIAS)
-        out = np.asarray(img) / 255.
-        # img = ToTensor()(img)
-        # img = torch.unsqueeze(img, 0)
-        # print(f'tensor size: {img.size()}')
-        # out = F.interpolate(img)
-        # print(f'interpolate tensor size: {out.size()}')
-        # out = out.numpy()/255.
-        return out
-
     def __getitem__(self, idx):
         raw_file = self.raw_filenames[idx]
         if raw_file not in self.reference_filenames:
             raise ValueError(f'{raw_file} does not exist in {reference_pth}')
-        raw_img = self._load_img(os.path.join(self.raw_pth, raw_file))
-        ref_img = self._load_img(os.path.join(self.reference_pth, raw_file))
-                        #resize(self.image_size, Image.ANTIALIAS)
-        #print(raw_img.shape)
-        return raw_img, ref_img
+        raw_img = io.imread(os.path.join(self.raw_pth, raw_file))
+        ref_img = io.imread(os.path.join(self.reference_pth, raw_file))
+        sample = {'raw_image': raw_img, 'ref_image': ref_img}                
+        
+        if self.transform:
+            sample = self.transform(sample)
+        return sample
