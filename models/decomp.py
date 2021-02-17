@@ -47,3 +47,6 @@ class Decompose(nn.Module):
         I = F.sigmoid(x[:, 3:, :, :].contiguous().to(device))
 
         return R, I
+
+def deocmp_loss(input_high, input_low, R_high, I_high, R_low, I_low):
+    pass
