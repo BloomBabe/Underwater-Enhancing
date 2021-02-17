@@ -49,4 +49,6 @@ class Decompose(nn.Module):
         return R, I
 
 def deocmp_loss(input_high, input_low, R_high, I_high, R_low, I_low):
-    pass
+    recon_loss_low = torch.mean(torch.abs(R_low * I_low.repeat(1, 3, 1, 1) - input_low))
+    recon_loss_high = torch.mean(torch.abs(R_high * I_high.repeat(1, 3, 1, 1) - input_high))
+    recon_loss_mutal_low = torch.mean(torch.abs(R_high * I_low.repeat(1, 3, 1, 1) - input_low))

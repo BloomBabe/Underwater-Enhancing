@@ -26,6 +26,6 @@ class UiebDataset(Dataset):
         raw_file = self.raw_filenames[idx]
         if raw_file not in reference_filenames:
             raise ValueError(f'{raw_file} does not exist in {reference_pth}')
-        raw_img = np.asarray(PIL.Image.open(os.path.join(self.raw_pth, self.raw_file)))
-        ref_img = np.asarray(PIL.Image.open(os.path.join(self.reference_pth, self.raw_file)))
+        raw_img = np.asarray(PIL.Image.open(os.path.join(self.raw_pth, self.raw_file))) / 255.0
+        ref_img = np.asarray(PIL.Image.open(os.path.join(self.reference_pth, self.raw_file))) / 255.0
         return raw_img, ref_img

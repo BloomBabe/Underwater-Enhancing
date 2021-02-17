@@ -9,6 +9,12 @@ import argparse
 import datetime
 from tqdm import tqdm
 
+from uieb_dataset import *
+from models.decomp import *
+from data_utils import *
+
+torch.manual_seed(42)
+random.seed(42)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
@@ -37,27 +43,27 @@ DECAY_RATE = args.decay_rate
 timestr = str(datetime.datetime.now().strftime('%Y-%m-%d_%H-%M'))
 if EXP_DIR is None:
     EXP_DIR = os.path.join('experiments', 'decomposition', timestr)
-    os.makedirs(EXP_DIR)
+    if not os.path.exists(EXP_DIR):
+        os.makedirs(EXP_DIR)
 checkpoints_dir = os.path.join(EXP_DIR, 'checkpoints')
 if not os.path.exists(checkpoints_dir):
     os.mkdir(checkpoints_dir)
+log_dir = os.path.join(EXP_DIR, 'logs')
+if not os.path.exists(log_dir):
+    os.mkdir(log_dir)
 
 """ Data loading """
-train_ds = PointCloudDataset(PATH, transforms=train_transforms())
-valid_ds = PointCloudDataset(PATH, folder='test')
-
-print('Train dataset size: ', len(train_ds))
-print('Valid dataset size: ', len(valid_ds))
-print('Number of classes: ', len(train_ds.classes))
-
+dataset = UiebDataset(RAW_PATH, REF_PATH)
+lengths = [int(len(dataset)*0.8), int(len(dataset)*0.2)]
+train_ds, valid_ds = random_split(init_dataset, lengths)
 train_loader = DataLoader(dataset=train_ds, batch_size=BATCH_SIZE, shuffle=True)
 valid_loader = DataLoader(dataset=valid_ds, batch_size=BATCH_SIZE)
 
 """ Model loading """
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
-pointnet = PointNetClass()
-pointnet.to(device)
+decomp = Decompose(num_layers=5)
+decomp.to(device)
 
 """ Define optimizer """
 optimizer = torch.optim.Adam(
@@ -72,14 +78,13 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.7)
 if WEIGHTS_PTH is not None:
     checkpoint = torch.load(WEIGHTS_PTH)
     start_epoch = checkpoint['epoch']
-    pointnet.load_state_dict(checkpoint['model_state_dict'])
+    decomp.load_state_dict(checkpoint['model_state_dict'])
     print('Use pretrained model')
     scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
 else:
     start_epoch = 0
 global_epoch = 0
 global_step = 0
-best_acc = 0.0
 
 """ Training """
 for epoch in range(start_epoch, EPOCHS): 
@@ -88,10 +93,18 @@ for epoch in range(start_epoch, EPOCHS):
     correct = total = 0
     # train
     for batch_id, data in tqdm(enumerate(train_loader, 0), total=len(train_loader), smoothing=0.9):
-        inputs, labels = data['pointcloud'].to(device).float(), data['category'].to(device)
+        raw_img, ref_img = dataset
+        raw_img.to(device), ref_img.to(device)
+        
+        rand_mode = random.randint(0, 7)
+        raw_img = torch.Tensor(data_augmentation(raw_img), rand_mode)
+        ref_img = torch.Tensor(data_augmentation(ref_img), rand_mode)
+
         optimizer.zero_grad()
-        pointnet.train()
-        outputs, m64x64 = pointnet(inputs.transpose(1,2))
+        decomp.train()
+
+        R_low, I_low = decomp(raw_img)
+        R_high, I_high = decomp(ref_img)
         loss = pointnetloss(outputs, labels, m64x64)
         
         _, predicted = torch.max(outputs.data, 1)
