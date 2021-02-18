@@ -2,8 +2,11 @@ import numpy as np
 import torch
 from skimage import io, transform
 import torch.nn.functional as F
+from torchvision import transforms
 
-class Rescale(object):
+torch.manual_seed(17)
+
+class Resize(object):
     """Rescale the image in a sample to a given size.
 
     Args:
@@ -53,6 +56,26 @@ class ToTensor(object):
 
         return {'raw_image': torch.from_numpy(new_raw_image).float(),
                 'ref_image': torch.from_numpy(new_ref_image).float()}
+
+class Normalize(object):
+    """Normalize a tensor image with mean and standard deviation."""
+    def __init__(self, mean, std):
+        self.mean = mean
+        self.std = std
+
+    def _normalize(self, image):
+        return transforms.Normalize(self.mean, self.std)(image)
+
+    def __call__(self, sample):
+        raw_image, ref_image = sample['raw_image'], sample['ref_image']
+        # norm_raw_image = self._normalize(raw_image.unsqueeze(0))
+        # norm_ref_image = self._normalize(ref_image.unsqueeze(0))
+        # return {'raw_image': norm_raw_image.squeeze(0),
+        #         'ref_image': norm_ref_image.squeeze(0)}
+        norm_raw_image = self._normalize(raw_image)
+        norm_ref_image = self._normalize(ref_image)
+        return {'raw_image': norm_raw_image,
+                'ref_image': norm_ref_image}
 
 class RandomRotation(object):
     """ """

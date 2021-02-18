@@ -35,7 +35,7 @@ class UiebDataset(Dataset):
             raise ValueError(f'{raw_file} does not exist in {reference_pth}')
         raw_img = io.imread(os.path.join(self.raw_pth, raw_file))
         ref_img = io.imread(os.path.join(self.reference_pth, raw_file))
-        sample = {'raw_image': raw_img, 'ref_image': ref_img}                
+        sample = {'raw_image': raw_img/255., 'ref_image': ref_img/255.}                
         
         if self.transform:
             sample = self.transform(sample)
