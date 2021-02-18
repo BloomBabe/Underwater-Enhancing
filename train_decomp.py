@@ -25,7 +25,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dataset_pth', type=str, default='./data', help='Path of reference dataset [default: ././reference-890]')
 parser.add_argument('--image_shape', type=tuple, default=(256, 256), help='Shape of imput images')
 parser.add_argument('--weights_path', type=str, default=None, help='Path to pretrained model [default: None]')
-parser.add_argument('--epoch', type=int, default=200, help='Number of training epochs [default: 200]')
+parser.add_argument('--epoch', type=int, default=1000, help='Number of training epochs [default: 200]')
 parser.add_argument('--batch_size', type=int, default=24, help='Batch Size during training [default: 24]')
 parser.add_argument('--learning_rate', type=float, default=0.001, help='Initial learning rate [default: 0.001]')
 parser.add_argument('--exp_dir', type=str, default=None, help='Experiment dir [default: log]')
@@ -79,7 +79,7 @@ optimizer = torch.optim.Adam(
                 weight_decay=DECAY_RATE
                 )
 
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.7)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.7)
 
 """ Load model weights """
 if WEIGHTS_PTH is not None:
@@ -102,7 +102,7 @@ for epoch in range(start_epoch, EPOCHS):
     # train
     for batch_id, data in tqdm(enumerate(train_loader, 0), total=len(train_loader), smoothing=0.9):
         raw_img, ref_img = data['raw_image'].to(device), data['ref_image'].to(device)
-        img = raw_img[1,:,:,:].cpu().detach().numpy()
+        # img = raw_img[1,:,:,:].cpu().detach().numpy()
         # io.imsave('/content/file.png', img.transpose((1, 2, 0)))
         # optimizer.zero_grad()
         decomp.train()
@@ -140,5 +140,5 @@ for epoch in range(start_epoch, EPOCHS):
                     'scheduler_state_dict': scheduler.state_dict()
                     }
             torch.save(state, savepth)
-            global_epoch += 1
+    global_epoch += 1
     scheduler.step()
