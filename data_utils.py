@@ -68,18 +68,21 @@ class Normalize(object):
 
     def __call__(self, sample):
         raw_image, ref_image = sample['raw_image'], sample['ref_image']
-        # norm_raw_image = self._normalize(raw_image.unsqueeze(0))
-        # norm_ref_image = self._normalize(ref_image.unsqueeze(0))
-        # return {'raw_image': norm_raw_image.squeeze(0),
-        #         'ref_image': norm_ref_image.squeeze(0)}
         norm_raw_image = self._normalize(raw_image)
         norm_ref_image = self._normalize(ref_image)
         return {'raw_image': norm_raw_image,
                 'ref_image': norm_ref_image}
 
 class RandomRotation(object):
-    """ """
+    """Rotate the image by angle."""
+    def _random_rotate(self, image):
+        return transforms.RandomRotation()(image)
+
     def __call__(self, sample):
         raw_image, ref_image = sample['raw_image'], sample['ref_image']
+        rotate_raw_image = self._random_rotate(raw_image)
+        rotate_ref_image = self._random_rotate(ref_image)
+        return {'raw_image': rotate_raw_image,
+                'ref_image': rotate_ref_image}
 
 

@@ -56,11 +56,11 @@ if not os.path.exists(log_dir):
     os.mkdir(log_dir)
 
 """ Data loading """
-transform = transforms.Compose([ToTensor(), Resize((256, 256)), 
-                                Normalize(mean=[0.485, 0.456, 0.406],
-                                           std=[0.229, 0.224, 0.225])])
-train_ds = UiebDataset(DATASET, mode='train', transform=transform)
-valid_ds = UiebDataset(DATASET, mode='val', transform=transform)
+val_transform = [ToTensor(), Resize((256, 256)), 
+                 Normalize(mean=[0.485, 0.456, 0.406],
+                           std=[0.229, 0.224, 0.225])]
+train_ds = UiebDataset(DATASET, mode='train', transform=transforms.Compose(train_tranform))
+valid_ds = UiebDataset(DATASET, mode='val', transform=transforms.Compose(val_transform))
 train_loader = DataLoader(dataset=train_ds, batch_size=BATCH_SIZE, shuffle=True)
 valid_loader = DataLoader(dataset=valid_ds, batch_size=BATCH_SIZE)
 
