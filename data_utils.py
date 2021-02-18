@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from skimage import io, transform
+import torch.nn.functional as F
 
 class Rescale(object):
     """Rescale the image in a sample to a given size.
@@ -10,13 +11,12 @@ class Rescale(object):
             matched to output_size. If int, smaller of image edges is matched
             to output_size keeping aspect ratio the same.
     """
-
     def __init__(self, output_size):
         assert isinstance(output_size, (int, tuple))
         self.output_size = output_size
 
     def _resize(self, image):
-        h, w = image.shape[:2]
+        h, w = image.size()[1:3]
         if isinstance(self.output_size, int):
             if h > w:
                 new_h, new_w = self.output_size * h / w, self.output_size
@@ -27,8 +27,8 @@ class Rescale(object):
 
         new_h, new_w = int(new_h), int(new_w)
 
-        img = transform.resize(image, (new_h, new_w))
-        return img
+        img = F.interpolate(image.unsqueeze(0), (new_h, new_w))
+        return img.squeeze(0)
 
     def __call__(self, sample):
         raw_image, ref_image = sample['raw_image'], sample['ref_image']
@@ -45,7 +45,6 @@ class ToTensor(object):
 
     def __call__(self, sample):
         raw_image, ref_image = sample['raw_image'], sample['ref_image']
-
         # swap color axis because
         # numpy image: H x W x C
         # torch image: C X H X W
@@ -54,5 +53,10 @@ class ToTensor(object):
 
         return {'raw_image': torch.from_numpy(new_raw_image).float(),
                 'ref_image': torch.from_numpy(new_ref_image).float()}
+
+class RandomRotation(object):
+    """ """
+    def __call__(self, sample):
+        raw_image, ref_image = sample['raw_image'], sample['ref_image']
 
 

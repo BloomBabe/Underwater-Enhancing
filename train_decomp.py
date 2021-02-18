@@ -7,6 +7,7 @@ import json
 import torch
 import argparse
 import datetime
+from skimage import io
 from tqdm import tqdm
 from torchvision import transforms
 from torch.utils.data import DataLoader, random_split
@@ -55,7 +56,7 @@ if not os.path.exists(log_dir):
     os.mkdir(log_dir)
 
 """ Data loading """
-transform = transforms.Compose([Rescale((256, 256)), ToTensor()])
+transform = transforms.Compose([ToTensor(), Rescale((256, 256))])
 train_ds = UiebDataset(DATASET, mode='train', transform=transform)
 valid_ds = UiebDataset(DATASET, mode='val', transform=transform)
 train_loader = DataLoader(dataset=train_ds, batch_size=BATCH_SIZE, shuffle=True)
@@ -98,6 +99,8 @@ for epoch in range(start_epoch, EPOCHS):
     # train
     for batch_id, data in tqdm(enumerate(train_loader, 0), total=len(train_loader), smoothing=0.9):
         raw_img, ref_img = data['raw_image'].to(device), data['ref_image'].to(device)
+        # img = raw_img[1,:,:,:].cpu().detach().numpy()
+        # io.imsave('/content/file.png', img.transpose((1, 2, 0)))
         optimizer.zero_grad()
         decomp.train()
         R_low, I_low = decomp(raw_img)
@@ -124,7 +127,7 @@ for epoch in range(start_epoch, EPOCHS):
         if val_loss < best_loss:
             best_loss = val_loss
             print('Saving model...')
-            savepth = os.path.join(checkpoints_dir, f'/saved_epoch_{epoch+1}.pth')
+            savepth = os.path.join(checkpoints_dir, f'saved_epoch_{epoch+1}.pth')
             print(f'Model saved at {savepth}')
             state = {
                     'epoch': epoch,
