@@ -1,10 +1,12 @@
 import numpy as np
 import torch
+import random
 from skimage import io, transform
 import torch.nn.functional as F
 from torchvision import transforms
 
 torch.manual_seed(17)
+random.seed(42)
 
 class Resize(object):
     """Rescale the image in a sample to a given size.
@@ -75,13 +77,14 @@ class Normalize(object):
 
 class RandomRotation(object):
     """Rotate the image by angle."""
-    def _random_rotate(self, image):
-        return transforms.RandomRotation()(image)
+    def _rotate(self, image, angle):
+        return transforms.functional.rotate(image, angle)
 
     def __call__(self, sample):
         raw_image, ref_image = sample['raw_image'], sample['ref_image']
-        rotate_raw_image = self._random_rotate(raw_image)
-        rotate_ref_image = self._random_rotate(ref_image)
+        angle = random.randint(0, 360)
+        rotate_raw_image = self._rotate(raw_image, angle)
+        rotate_ref_image = self._rotate(ref_image, angle)
         return {'raw_image': rotate_raw_image,
                 'ref_image': rotate_ref_image}
 

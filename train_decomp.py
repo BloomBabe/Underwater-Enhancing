@@ -59,7 +59,7 @@ if not os.path.exists(log_dir):
 val_transform = [ToTensor(), Resize((256, 256)), 
                  Normalize(mean=[0.485, 0.456, 0.406],
                            std=[0.229, 0.224, 0.225])]
-train_tranform = val_transform.append(RandomRotation())
+train_tranform = val_transform+[RandomRotation()]
 train_ds = UiebDataset(DATASET, mode='train', transform=transforms.Compose(train_tranform))
 valid_ds = UiebDataset(DATASET, mode='val', transform=transforms.Compose(val_transform))
 train_loader = DataLoader(dataset=train_ds, batch_size=BATCH_SIZE, shuffle=True)
@@ -103,8 +103,8 @@ for epoch in range(start_epoch, EPOCHS):
     for batch_id, data in tqdm(enumerate(train_loader, 0), total=len(train_loader), smoothing=0.9):
         raw_img, ref_img = data['raw_image'].to(device), data['ref_image'].to(device)
         img = raw_img[1,:,:,:].cpu().detach().numpy()
-        io.imsave('/content/file.png', img.transpose((1, 2, 0)))
-        optimizer.zero_grad()
+        # io.imsave('/content/file.png', img.transpose((1, 2, 0)))
+        # optimizer.zero_grad()
         decomp.train()
         R_low, I_low = decomp(raw_img)
         R_high, I_high = decomp(ref_img)
