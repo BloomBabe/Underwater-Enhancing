@@ -52,7 +52,7 @@ class ToTensor(object):
         new_raw_image = self._transpose(raw_image)
         new_ref_image = self._transpose(ref_image)
 
-        return {'raw_image': torch.from_numpy(new_raw_image),
-                'ref_image': torch.from_numpy(new_ref_image)}
+        return {'raw_image': torch.from_numpy(new_raw_image).float(),
+                'ref_image': torch.from_numpy(new_ref_image).float()}
 
 

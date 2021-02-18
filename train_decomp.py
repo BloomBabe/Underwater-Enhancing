@@ -47,6 +47,7 @@ if EXP_DIR is None:
     if not os.path.exists(EXP_DIR):
         os.makedirs(EXP_DIR)
 checkpoints_dir = os.path.join(EXP_DIR, 'checkpoints')
+print(checkpoints_dir)
 if not os.path.exists(checkpoints_dir):
     os.mkdir(checkpoints_dir)
 log_dir = os.path.join(EXP_DIR, 'logs')
@@ -93,33 +94,33 @@ best_loss = 100.
 """ Training """
 for epoch in range(start_epoch, EPOCHS): 
     print('Epoch %d (%d/%s):' % (global_epoch + 1, epoch + 1, EPOCHS))
-    loss_list = []
+    mean_loss = 0.
     # train
     for batch_id, data in tqdm(enumerate(train_loader, 0), total=len(train_loader), smoothing=0.9):
         raw_img, ref_img = data['raw_image'].to(device), data['ref_image'].to(device)
         optimizer.zero_grad()
         decomp.train()
-        R_low, I_low = decomp(raw_img.float())
-        R_high, I_high = decomp(ref_img.float())
+        R_low, I_low = decomp(raw_img)
+        R_high, I_high = decomp(ref_img)
         loss = deocmp_loss(ref_img, raw_img, R_high, I_high, R_low, I_low)
-        loss_list.append(loss)
+        mean_loss += float(loss)
         loss.backward()
         optimizer.step()
         global_step +=1
-    print('Mean loss: %f' % np.mean(loss_list))
+    print(f'Mean loss: {mean_loss/(batch_id+1):.4f}')
 
     decomp.eval()
     # validation
     with torch.no_grad():
-        val_loss = []
-        for data in valid_loader:
+        val_loss = 0.
+        for i, data in enumerate(valid_loader):
             raw_img, ref_img = data['raw_image'].to(device), data['ref_image'].to(device)
             R_low, I_low = decomp(raw_img)
             R_high, I_high = decomp(ref_img)
             loss = deocmp_loss(ref_img, raw_img, R_high, I_high, R_low, I_low)
-            val_loss.append(loss)
-        val_loss = np.mean(val_loss)
-        print('Valid mean loss: %d' % val_loss)
+            val_loss += float(loss)
+        val_loss = val_loss/(i+1)
+        print(f'Valid mean loss: {val_loss:.4f}')
         if val_loss < best_loss:
             best_loss = val_loss
             print('Saving model...')
